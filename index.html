@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>大砲算術塔防 - 物理同步版</title>
+    <title>大砲算術塔防 - 暫停系統版</title>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
     <style>
         :root {
@@ -56,13 +56,28 @@
             display: flex; flex-direction: column; justify-content: center; align-items: center; color: white;
         }
         .overlay-title { font-size: 80px; font-weight: bold; margin-bottom: 20px; text-shadow: 0 0 20px rgba(255,255,255,0.5); }
-        .overlay-text { font-size: 36px; margin-bottom: 50px; color: #bdc3c7; }
-        .big-btn {
-            width: 400px; padding: 20px; margin: 10px; font-size: 36px; font-weight: bold;
-            border: none; border-radius: 20px; cursor: pointer; background: #57606f; color: white; transition: 0.3s;
+        .overlay-text { font-size: 36px; margin-bottom: 40px; color: #bdc3c7; }
+        
+        .mode-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 20px; width: 700px; max-width: 90%;
+        }
+        .mode-btn {
+            padding: 20px; font-size: 32px; font-weight: bold;
+            border: none; border-radius: 15px; cursor: pointer; color: white; transition: 0.3s;
             box-shadow: 0 5px 15px rgba(0,0,0,0.5);
         }
+        .mode-btn.add { background: #2ecc71; } 
+        .mode-btn.sub { background: #3498db; } 
+        .mode-btn.inf { background: #9b59b6; grid-column: span 2; font-size: 36px; } 
+        .mode-btn:hover { transform: scale(1.05); filter: brightness(1.1); }
+        
+        .big-btn {
+            width: 400px; padding: 20px; font-size: 36px; font-weight: bold;
+            border: none; border-radius: 20px; cursor: pointer; background: #57606f; color: white; transition: 0.3s;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5); margin-top: 20px;
+        }
         .big-btn.primary { background: #2ecc71; }
+        .big-btn.danger { background: #e74c3c; }
         .big-btn:hover { transform: scale(1.05); filter: brightness(1.1); }
 
         #sys-buttons { position: absolute; top: 20px; right: 20px; display: flex; gap: 15px; z-index: 4000; }
@@ -101,24 +116,12 @@
         #cannon-barrel { position: absolute; left: 30px; top: 35px; width: 95px; height: 40px; background: var(--cannon-color); border: 3px solid #1e272e; border-radius: 5px 15px 15px 5px; transform-origin: left center; }
         #cannon-base { position: absolute; left: 0; top: 15px; width: 75px; height: 75px; background: #222; border-radius: 50%; border: 4px solid #111; z-index: 11; }
         
-        /* 怪物 */
-        .monster { 
-            position: absolute; width: 85px; height: 85px; z-index: 4; 
-        }
-        
-        .m-body {
-            position: absolute; width: 100%; height: 100%;
-            background: #111; border-radius: 50%;
-            box-shadow: 0 0 0 2px #111, 5px 5px 0 -1px #111, -5px 5px 0 -1px #111, 5px -5px 0 -1px #111, -5px -5px 0 -1px #111, 8px 0 0 -2px #111, -8px 0 0 -2px #111, 0 8px 0 -2px #111, 0 -8px 0 -2px #111;
-            transform-origin: center center;
-        }
-
+        .monster { position: absolute; width: 85px; height: 85px; z-index: 4; }
+        .m-body { position: absolute; width: 100%; height: 100%; background: #111; border-radius: 50%; box-shadow: 0 0 0 2px #111, 5px 5px 0 -1px #111, -5px 5px 0 -1px #111, 5px -5px 0 -1px #111, -5px -5px 0 -1px #111, 8px 0 0 -2px #111, -8px 0 0 -2px #111, 0 8px 0 -2px #111, 0 -8px 0 -2px #111; transform-origin: center center; }
         .m-face { position: absolute; width: 100%; height: 100%; transform-origin: center 40%; }
-
-        /* 移除動畫中預設的 duration 與 delay，全部交由 JS 根據物理速度動態綁定 */
         .m-leg { position: absolute; width: 4px; background: #111; border-radius: 2px; transform-origin: top center; }
-        .m-leg.l { left: 30px; animation: mWalkL infinite alternate; }
-        .m-leg.r { right: 30px; animation: mWalkR infinite alternate; }
+        .m-leg.l { left: 30px; animation: mWalkL 0.2s infinite alternate; }
+        .m-leg.r { right: 30px; animation: mWalkR 0.2s infinite alternate; animation-delay: 0.1s; }
         @keyframes mWalkL { 0% { transform: translateY(0) rotate(0deg); } 100% { transform: translateY(-5px) rotate(12deg); } }
         @keyframes mWalkR { 0% { transform: translateY(0) rotate(0deg); } 100% { transform: translateY(-5px) rotate(-12deg); } }
 
@@ -156,6 +159,9 @@
     <div id="game-wrapper">
         
         <div id="sys-buttons">
+            <div id="pause-btn" class="icon-btn" style="display:none;" onclick="togglePause()">
+                <svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+            </div>
             <div id="mute-btn" class="icon-btn">
                 <svg id="icon-unmute" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
                 <svg id="icon-mute" viewBox="0 0 24 24" style="display:none;"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
@@ -168,21 +174,33 @@
 
         <div id="start-screen" class="overlay-screen">
             <div class="overlay-title" style="color: #f1c40f;">大砲算術守衛戰</div>
-            <div class="overlay-text">目標：擊敗 50 隻調皮的灰塵怪！</div>
-            <button class="big-btn primary" onclick="startGame(1)">難度：10以下加法</button>
-            <button class="big-btn" onclick="startGame(2)">難度：20以下加法</button>
+            <div class="overlay-text">請選擇防守模式，保護城牆！</div>
+            <div class="mode-grid">
+                <button class="mode-btn add" onclick="startGame(1)">10以內 加法</button>
+                <button class="mode-btn add" onclick="startGame(2)">20以內 加法</button>
+                <button class="mode-btn sub" onclick="startGame(3)">10以內 減法</button>
+                <button class="mode-btn sub" onclick="startGame(4)">20以內 減法</button>
+                <button class="mode-btn inf" onclick="startGame(5)">🔥 無限綜合模式 🔥</button>
+            </div>
+        </div>
+
+        <div id="pause-screen" class="overlay-screen" style="display: none;">
+            <div class="overlay-title" style="color: #3498db;">遊戲暫停</div>
+            <div class="overlay-text">休息一下，喝口水吧！</div>
+            <button class="big-btn primary" onclick="togglePause()">繼續遊戲</button>
+            <button class="big-btn danger" onclick="location.reload()">回到首頁</button>
         </div>
 
         <div id="victory-screen" class="overlay-screen" style="display: none;">
             <div class="overlay-title" style="color: #2ecc71;">恭喜過關！</div>
             <div class="overlay-text">你成功守護了城牆，數學太棒了！</div>
-            <button class="big-btn primary" onclick="location.reload()">再玩一次</button>
+            <button class="big-btn primary" onclick="location.reload()">回到首頁</button>
         </div>
 
         <div id="gameover-screen" class="overlay-screen" style="display: none;">
             <div class="overlay-title" style="color: #ff4757;">防線崩潰...</div>
             <div class="overlay-text" id="final-kills"></div>
-            <button class="big-btn" onclick="location.reload()">重新挑戰</button>
+            <button class="big-btn" onclick="location.reload()">回到首頁</button>
         </div>
 
         <div id="controls-layout">
@@ -215,7 +233,7 @@
         </div>
         
         <div id="battle-scene">
-            <div id="score-board">KILLS: <span id="kills">0</span> / 50</div>
+            <div id="score-board">KILLS: <span id="kills-text">0 / 50</span></div>
             <div class="wall"></div>
             <div id="cannon-container">
                 <div id="cannon-barrel"></div>
@@ -245,7 +263,7 @@ let state = {
     kills: 0, bullets: 0, monsters: [], activeBullets: [],
     currentAns: null, isGameOver: false, isVictory: false, cannonAngle: 0,
     gameMode: 1, gameActive: false, missileCharge: 0, missileReady: false,
-    walkTimer: 0, isMuted: false 
+    walkTimer: 0, isMuted: false, isPaused: false // 【新增】暫停狀態
 };
 
 function resize() {
@@ -272,16 +290,34 @@ muteBtn.onclick = () => {
     state.isMuted = !state.isMuted;
     iconUnmute.style.display = state.isMuted ? 'none' : 'block';
     iconMute.style.display = state.isMuted ? 'block' : 'none';
-    if (!state.isMuted && audioCtx.state === 'suspended') {
+    if (!state.isMuted && audioCtx.state === 'suspended' && !state.isPaused) {
         audioCtx.resume();
     }
 };
+
+// --- 【新增】暫停功能控制 ---
+function togglePause() {
+    if (!state.gameActive || state.isGameOver || state.isVictory) return;
+    
+    state.isPaused = !state.isPaused;
+    const pauseScreen = document.getElementById('pause-screen');
+    
+    if (state.isPaused) {
+        pauseScreen.style.display = 'flex';
+        // 暫停時掛起音頻引擎，BGM與所有音效會瞬間停止
+        if (audioCtx.state === 'running') audioCtx.suspend(); 
+    } else {
+        pauseScreen.style.display = 'none';
+        // 恢復時，若非靜音狀態則重新喚醒音頻引擎
+        if (!state.isMuted && audioCtx.state === 'suspended') audioCtx.resume();
+    }
+}
 
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 let bgmInterval = null;
 
 function playSFX(type) {
-    if (state.isMuted) return; 
+    if (state.isMuted || state.isPaused) return; // 暫停時不播放音效
     if (audioCtx.state === 'suspended') audioCtx.resume();
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
@@ -381,7 +417,7 @@ function startBGM() {
     ];
     let step = 0;
     bgmInterval = setInterval(() => {
-        if (state.isMuted) return; 
+        if (state.isMuted || state.isPaused) return; // 暫停時不排程新音符
         if (audioCtx.state === 'suspended') return;
         const freq = melody[step % melody.length];
         step++;
@@ -407,28 +443,58 @@ function startGame(mode) {
     if (audioCtx.state === 'suspended' && !state.isMuted) audioCtx.resume();
     state.gameMode = mode; state.gameActive = true;
     document.getElementById('start-screen').style.display = 'none';
+    document.getElementById('pause-btn').style.display = 'flex'; // 顯示暫停按鈕
+    updateUI(); 
     startBGM(); 
     nextQ(); spawn(); loop();
 }
 
 function nextQ() {
-    if(state.isGameOver || state.isVictory) return;
-    let a, b, ans;
-    if (state.gameMode === 1) {
+    if(state.isGameOver || state.isVictory || state.isPaused) return;
+    
+    let a, b, ans, op;
+    let currentMode = state.gameMode;
+    if (currentMode === 5) {
+        currentMode = Math.floor(Math.random() * 4) + 1;
+    }
+
+    if (currentMode === 1) {
         ans = Math.floor(Math.random() * 9) + 2;
         a = Math.floor(Math.random() * (ans - 1)) + 1;
         b = ans - a;
-    } else {
-        a = Math.floor(Math.random() * 9) + 2; b = Math.floor(Math.random() * 9) + 2;
-        while (a + b < 10 || a + b > 20) { a = Math.floor(Math.random() * 9) + 2; b = Math.floor(Math.random() * 9) + 2; }
+        op = '+';
+    } else if (currentMode === 2) {
+        a = Math.floor(Math.random() * 9) + 2; 
+        b = Math.floor(Math.random() * 9) + 2;
+        while (a + b < 10 || a + b > 20) { 
+            a = Math.floor(Math.random() * 9) + 2; 
+            b = Math.floor(Math.random() * 9) + 2; 
+        }
         ans = a + b;
+        op = '+';
+    } else if (currentMode === 3) {
+        a = Math.floor(Math.random() * 9) + 2; 
+        b = Math.floor(Math.random() * (a - 1)) + 1; 
+        ans = a - b;
+        op = '-';
+    } else if (currentMode === 4) {
+        a = Math.floor(Math.random() * 9) + 11; 
+        b = Math.floor(Math.random() * 8) + 2;  
+        while (a - b < 1 || a - b > 9) { 
+            a = Math.floor(Math.random() * 9) + 11;
+            b = Math.floor(Math.random() * 8) + 2;
+        }
+        ans = a - b;
+        op = '-';
     }
+
     state.currentAns = ans;
-    document.getElementById('question-display').innerText = `${a}+${b}`;
+    document.getElementById('question-display').innerText = `${a} ${op} ${b}`;
+    
     let opts = new Set([ans]);
     while(opts.size < 4) {
         let off = (Math.random() > 0.5 ? 1 : -1) * (Math.floor(Math.random()*3)+1);
-        if (ans + off > 0) opts.add(ans + off);
+        if (ans + off >= 0) opts.add(ans + off);
     }
     const container = document.getElementById('options');
     container.innerHTML = '';
@@ -436,6 +502,7 @@ function nextQ() {
         const btn = document.createElement('button');
         btn.className = 'opt-btn'; btn.innerText = v;
         btn.onclick = () => {
+            if (state.isPaused) return; // 暫停時按鈕無效
             if (v === state.currentAns) {
                 state.bullets = Math.min(20, state.bullets + 1); 
                 state.missileCharge = Math.min(5, state.missileCharge + 1);
@@ -450,26 +517,24 @@ function nextQ() {
 
 function spawn() {
     if (state.isGameOver || state.isVictory || !state.gameActive) return;
+    
+    if (state.isPaused) {
+        // 暫停時推遲生成時間，不直接退出
+        setTimeout(spawn, 500); 
+        return;
+    }
+
     playSFX('spawn'); 
-    
     const type = Math.floor(Math.random() * 4);
-    
     const baseScale = (Math.random() * 0.2 + 0.4).toFixed(2);
     const bodyScaleX = (Math.random() * 0.6 + 0.7).toFixed(2);
     const bodyScaleY = (Math.random() * 0.6 + 0.7).toFixed(2);
     const faceScale = (Math.random() * 0.4 + 0.8).toFixed(2);
-    
     const legBottom = (-15 - (85 * (bodyScaleY - 1) / 2)).toFixed(2);
     const legHeight = (18 * Math.max(1, bodyScaleY)).toFixed(2);
     
-    // 計算怪物的物理移動速度
     const mSpeed = CONFIG.initialMonsterSpeed + (state.kills * 0.015);
-    
-    // --- 【重點更新】物理同步演算 ---
-    // 根據移動速度反推步伐週期：走越快、腳步動畫秒數越短！
     const legDur = Math.max(0.08, 0.05 / mSpeed).toFixed(2);
-    
-    // 完美交替步伐：將右腳的延遲設定為負的完整週期 (-legDur)，這樣左右腳永遠成完美反拍交替，不會出現跛腳感
     const legDelay = -legDur;
     
     const m = {
@@ -482,7 +547,6 @@ function spawn() {
     m.el.className = `monster m-type-${type}`; 
     m.el.style.transform = `scale(${baseScale})`;
     
-    // 動態寫入動畫的 duration 與 delay
     m.el.innerHTML = `
         <div class="m-body" style="transform: scale(${bodyScaleX}, ${bodyScaleY});"></div>
         <div class="m-face" style="transform: scale(${faceScale});">
@@ -500,6 +564,7 @@ function spawn() {
 }
 
 document.getElementById('fire-btn').onclick = () => {
+    if (state.isPaused) return; // 暫停時無效
     if (state.bullets > 0 && state.monsters.length > 0) {
         state.bullets--; updateUI(); playSFX('fire'); 
         const target = [...state.monsters].sort((a,b)=>a.x - b.x)[0];
@@ -514,6 +579,7 @@ document.getElementById('fire-btn').onclick = () => {
 };
 
 document.getElementById('missile-btn').onclick = () => {
+    if (state.isPaused) return; // 暫停時無效
     if (state.missileReady && state.monsters.length > 0) {
         state.missileReady = false; state.missileCharge = 0; updateUI();
         const wrapper = document.getElementById('game-wrapper');
@@ -536,6 +602,8 @@ document.getElementById('missile-btn').onclick = () => {
         const speed = 15; 
 
         const mInterval = setInterval(() => {
+            if (state.isPaused) return; // 飛彈在空中凍結
+
             mX += Math.cos(mAngle) * speed; 
             mY += Math.sin(mAngle) * speed;
             mEl.style.left = mX + 'px'; mEl.style.top = mY + 'px';
@@ -570,57 +638,62 @@ function addKill() {
     state.kills++;
     updateUI();
     playSFX('die'); 
-    if (state.kills >= CONFIG.winKills) triggerVictory();
+    
+    if (state.gameMode !== 5 && state.kills >= CONFIG.winKills) {
+        triggerVictory();
+    }
 }
 
 function loop() {
     if (state.isGameOver || state.isVictory || !state.gameActive) return;
     
-    if (state.monsters.length > 0) {
-        // --- 【重點更新】聽覺同步演算 ---
-        // 抓取畫面上最靠近城牆的那隻怪物的速度，將聲音節奏與牠的步伐頻率完美同步！
-        const target = [...state.monsters].sort((a,b)=>a.x - b.x)[0];
-        const legDur = Math.max(0.08, 0.05 / target.speed);
-        
-        // 算出一步需要多少影格 (60fps)
-        const walkPace = legDur * 60; 
-        
-        state.walkTimer++;
-        if (state.walkTimer >= walkPace) {
-            playSFX('walk');
-            state.walkTimer = 0;
+    // --- 【更新】如果遊戲暫停，跳過所有物理與移動邏輯，達成畫面凍結 ---
+    if (!state.isPaused) {
+        if (state.monsters.length > 0) {
+            const target = [...state.monsters].sort((a,b)=>a.x - b.x)[0];
+            const legDur = Math.max(0.08, 0.05 / target.speed);
+            const walkPace = legDur * 60; 
+            
+            state.walkTimer++;
+            if (state.walkTimer >= walkPace) {
+                playSFX('walk');
+                state.walkTimer = 0;
+            }
+
+            const dx = (target.x + 42) - 310; 
+            const dy = (target.y + 42) - 275; 
+            state.cannonAngle = Math.atan2(dy, dx);
+            document.getElementById('cannon-barrel').style.transform = `rotate(${state.cannonAngle}rad)`;
         }
 
-        const dx = (target.x + 42) - 310; 
-        const dy = (target.y + 42) - 275; 
-        state.cannonAngle = Math.atan2(dy, dx);
-        document.getElementById('cannon-barrel').style.transform = `rotate(${state.cannonAngle}rad)`;
-    }
-    state.monsters.forEach(m => {
-        m.x -= m.speed; m.el.style.left = m.x + 'px'; m.el.style.top = m.y + 'px';
-        if (m.x <= 140) die(); 
-    });
-    for (let i = state.activeBullets.length-1; i>=0; i--) {
-        const b = state.activeBullets[i];
-        let tx = b.x + 100, ty = b.y;
-        if (state.monsters.includes(b.target)) { tx = b.target.x + 42; ty = b.target.y + 42; }
-        const dx = tx - b.x, dy = ty - b.y; const angle = Math.atan2(dy, dx);
-        b.x += Math.cos(angle) * CONFIG.bulletSpeed; b.y += Math.sin(angle) * CONFIG.bulletSpeed;
-        b.el.style.left = b.x + 'px'; b.el.style.top = b.y + 'px'; b.el.style.transform = `rotate(${angle}rad)`;
-        state.monsters.forEach((m, mIdx) => {
-            const d = Math.sqrt(Math.pow(b.x-(m.x+42),2) + Math.pow(b.y-(m.y+42),2));
-            if (d < 25) { 
-                if (m.el.parentNode) m.el.remove(); state.monsters.splice(mIdx, 1);
-                if (b.el.parentNode) b.el.remove(); state.activeBullets.splice(i, 1);
-                addKill(); 
-            }
+        state.monsters.forEach(m => {
+            m.x -= m.speed; m.el.style.left = m.x + 'px'; m.el.style.top = m.y + 'px';
+            if (m.x <= 140) die(); 
         });
+
+        for (let i = state.activeBullets.length-1; i>=0; i--) {
+            const b = state.activeBullets[i];
+            let tx = b.x + 100, ty = b.y;
+            if (state.monsters.includes(b.target)) { tx = b.target.x + 42; ty = b.target.y + 42; }
+            const dx = tx - b.x, dy = ty - b.y; const angle = Math.atan2(dy, dx);
+            b.x += Math.cos(angle) * CONFIG.bulletSpeed; b.y += Math.sin(angle) * CONFIG.bulletSpeed;
+            b.el.style.left = b.x + 'px'; b.el.style.top = b.y + 'px'; b.el.style.transform = `rotate(${angle}rad)`;
+            
+            state.monsters.forEach((m, mIdx) => {
+                const d = Math.sqrt(Math.pow(b.x-(m.x+42),2) + Math.pow(b.y-(m.y+42),2));
+                if (d < 25) { 
+                    if (m.el.parentNode) m.el.remove(); state.monsters.splice(mIdx, 1);
+                    if (b.el.parentNode) b.el.remove(); state.activeBullets.splice(i, 1);
+                    addKill(); 
+                }
+            });
+        }
     }
     requestAnimationFrame(loop);
 }
 
 function updateUI() {
-    document.getElementById('kills').innerText = state.kills;
+    document.getElementById('kills-text').innerText = state.gameMode === 5 ? state.kills : `${state.kills} / ${CONFIG.winKills}`;
     document.getElementById('bullet-num').innerText = state.bullets;
     document.getElementById('bullet-num').style.color = (state.bullets >= 20) ? '#ff4757' : '#f1c40f';
     document.getElementById('fire-btn').disabled = (state.bullets <= 0);
@@ -636,6 +709,7 @@ function updateUI() {
 
 function triggerVictory() {
     state.isVictory = true;
+    document.getElementById('pause-btn').style.display = 'none'; // 隱藏暫停按鈕
     stopBGM(); 
     playSFX('victory'); 
     
@@ -655,9 +729,13 @@ function triggerVictory() {
 
 function die() {
     state.isGameOver = true; 
+    document.getElementById('pause-btn').style.display = 'none'; // 隱藏暫停按鈕
     stopBGM(); 
     playSFX('gameover'); 
-    document.getElementById('final-kills').innerText = `最終擊殺數: ${state.kills} / 50`;
+    
+    let killText = state.gameMode === 5 ? `最終擊殺數: ${state.kills}` : `最終擊殺數: ${state.kills} / 50`;
+    document.getElementById('final-kills').innerText = killText;
+    
     document.getElementById('gameover-screen').style.display = 'flex';
 }
 </script>
